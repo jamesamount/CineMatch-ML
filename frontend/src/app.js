@@ -432,28 +432,29 @@ function SearchSection({
       </div>
 
       <${InlineError} message=${error} />
+      ${loading
+        ? html`<${LoadingBlock} label="Searching the catalog..." />`
+        : visibleResults.length
+          ? html`
+              <div className="search-pills">
+                ${visibleResults.map(
+                  (movie) => html`
+                    <button
+                      className=${selectedMovie?.movie_id === movie.movie_id ? "search-pill is-active" : "search-pill"}
+                      onClick=${() => onSelectMovie(movie)}
+                      type="button"
+                    >
+                      <strong>${movie.title}</strong>
+                      <span>${movie.year || "Unknown"}${movie.genres?.[0] ? ` • ${movie.genres[0]}` : ""}</span>
+                    </button>
+                  `
+                )}
+              </div>
+            `
+          : null}
       <div className="cinema-layout">
         <div className="cinema-layout__main">
           ${seedMovie ? html`<${FeatureBanner} movie=${seedMovie} eyebrow="Current seed" />` : null}
-          <${SectionHeader}
-            title="Search results"
-            detail=${visibleResults.length ? `${visibleResults.length} visible matches from the current query` : "Search results will appear here."}
-          />
-          ${loading
-            ? html`<${LoadingBlock} label="Searching the catalog..." />`
-            : html`
-                <div className="poster-rail">
-                  ${visibleResults.map(
-                    (movie) => html`
-                      <${PosterTile}
-                        movie=${movie}
-                        onSelect=${onSelectMovie}
-                        isActive=${selectedMovie?.movie_id === movie.movie_id}
-                      />
-                    `
-                  )}
-                </div>
-              `}
         </div>
 
         <div className="cinema-layout__side">
