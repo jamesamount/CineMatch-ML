@@ -104,6 +104,93 @@ function FeatureBanner({ movie, eyebrow = "Featured" }) {
   `;
 }
 
+function PosterTile({ movie, onSelect, isActive = false, label }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageSrc = !imageFailed ? (movie.poster_url || movie.backdrop_url || "") : "";
+
+  return html`
+    <button
+      className=${isActive ? "poster-tile is-active" : "poster-tile"}
+      onClick=${() => onSelect?.(movie)}
+      type="button"
+    >
+      <div className="poster-tile__image-wrap">
+        ${imageSrc
+          ? html`
+              <${MediaArtwork}
+                src=${imageSrc}
+                alt=${movie.title}
+                className="poster-tile__image"
+                onError=${() => setImageFailed(true)}
+              />
+            `
+          : html`<div className="poster-tile__fallback"></div>`}
+        ${label ? html`<span className="poster-tile__label">${label}</span>` : null}
+      </div>
+      <div className="poster-tile__body">
+        <strong>${movie.title}</strong>
+        <span>${movie.year || "Unknown"}${movie.genres?.[0] ? ` • ${movie.genres[0]}` : ""}</span>
+      </div>
+    </button>
+  `;
+}
+
+function CompactMovieRow({ movie, badge, onSelect, actionLabel = "Use as seed" }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageSrc = !imageFailed ? (movie.backdrop_url || movie.poster_url || "") : "";
+
+  return html`
+    <article className="compact-card">
+      <div className="compact-card__thumb">
+        ${imageSrc
+          ? html`
+              <${MediaArtwork}
+                src=${imageSrc}
+                alt=${movie.title}
+                className="compact-card__image"
+                onError=${() => setImageFailed(true)}
+              />
+            `
+          : html`<div className="compact-card__fallback"></div>`}
+        ${badge ? html`<span className="compact-card__badge">${badge}</span>` : null}
+      </div>
+      <div className="compact-card__body">
+        <div className="compact-card__copy">
+          <p className="compact-card__eyebrow">
+            ${movie.year || "Unknown"}${movie.runtime ? ` • ${movie.runtime} min` : ""}
+          </p>
+          <h4>${movie.title}</h4>
+          <p className="compact-card__genres">${formatGenres(movie.genres)}</p>
+          <div className="compact-card__stats">
+            <span>TMDb ${movie.rating?.toFixed?.(1) || movie.rating}</span>
+            ${movie.similarity ? html`<span>Match ${(movie.similarity * 100).toFixed(0)}%</span>` : null}
+          </div>
+        </div>
+        ${onSelect
+          ? html`
+              <button className="compact-card__action" onClick=${() => onSelect(movie)} type="button">
+                ${actionLabel}
+              </button>
+            `
+          : null}
+      </div>
+    </article>
+  `;
+}
+
+function SectionHeader({ kicker, title, detail, actions }) {
+  return html`
+    <div className="section-header">
+      <div>
+        ${kicker ? html`<p className="section-kicker">${kicker}</p>` : null}
+        <h3>${title}</h3>
+        ${detail ? html`<p className="section-detail">${detail}</p>` : null}
+      </div>
+      ${actions ? html`<div className="section-header__actions">${actions}</div>` : null}
+    </div>
+  `;
+}
+
 function MovieCard({ movie, badge, onSelect, actionLabel = "Find similar" }) {
   const [posterFailed, setPosterFailed] = useState(false);
   const posterHue = Math.abs(
@@ -318,16 +405,20 @@ function SearchSection({
   setSimilarMethod,
   similarLoading,
 }) {
+  const visibleResults = results.slice(0, 6);
+  const featuredRecommendation = similarResults?.[0] || null;
+  const quickPicks = (similarResults || []).slice(1, 5);
+
   return html`
     <section className="panel panel--search">
-      <div className="panel__header">
+      <div className="panel__header panel__header--stacked">
         <div>
           <p className="section-kicker">Search + Retrieval</p>
-          <h2>Start with a movie, then expand outward</h2>
+          <h2>Start with one title, then open a cleaner recommendation shelf</h2>
         </div>
         <p className="panel__copy">
-          Search across titles, directors, and overviews. Each picked title can branch into cosine similarity
-          or k-nearest-neighbor recommendations.
+          Search across titles, directors, and overviews. Pick a result to branch into cosine similarity or
+          k-nearest-neighbor recommendations without dumping a huge list on screen.
         </p>
       </div>
 
@@ -341,23 +432,23 @@ function SearchSection({
       </div>
 
       <${InlineError} message=${error} />
-      ${seedMovie ? html`<${FeatureBanner} movie=${seedMovie} eyebrow="Current seed" />` : null}
-
-      <div className="search-results">
-        <div>
-          <div className="mini-heading">
-            <h3>Matches</h3>
-            <span>${results.length} loaded</span>
-          </div>
+      <div className="cinema-layout">
+        <div className="cinema-layout__main">
+          ${seedMovie ? html`<${FeatureBanner} movie=${seedMovie} eyebrow="Current seed" />` : null}
+          <${SectionHeader}
+            title="Search results"
+            detail=${visibleResults.length ? `${visibleResults.length} visible matches from the current query` : "Search results will appear here."}
+          />
           ${loading
             ? html`<${LoadingBlock} label="Searching the catalog..." />`
             : html`
-                <div className="movie-grid movie-grid--compact">
-                  ${results.map(
+                <div className="poster-rail">
+                  ${visibleResults.map(
                     (movie) => html`
-                      <${MovieCard}
+                      <${PosterTile}
                         movie=${movie}
                         onSelect=${onSelectMovie}
+                        isActive=${selectedMovie?.movie_id === movie.movie_id}
                       />
                     `
                   )}
@@ -365,36 +456,40 @@ function SearchSection({
               `}
         </div>
 
-        <div className="recommendation-column">
-          <div className="mini-heading mini-heading--stacked">
-            <div>
-              <h3>Similar picks</h3>
-              <span>${selectedMovie ? `Seeded by ${selectedMovie.title}` : "Choose a movie to populate this section"}</span>
-            </div>
-            <div className="toggle-row">
-              <button
-                className=${similarMethod === "cosine" ? "toggle-button is-active" : "toggle-button"}
-                onClick=${() => setSimilarMethod("cosine")}
-              >
-                Cosine
-              </button>
-              <button
-                className=${similarMethod === "knn" ? "toggle-button is-active" : "toggle-button"}
-                onClick=${() => setSimilarMethod("knn")}
-              >
-                k-NN
-              </button>
-            </div>
-          </div>
+        <div className="cinema-layout__side">
+          <${SectionHeader}
+            title="Top similar picks"
+            detail=${selectedMovie ? `Seeded by ${selectedMovie.title}` : "Choose a result to generate this shelf."}
+            actions=${html`
+              <div className="toggle-row">
+                <button
+                  className=${similarMethod === "cosine" ? "toggle-button is-active" : "toggle-button"}
+                  onClick=${() => setSimilarMethod("cosine")}
+                >
+                  Cosine
+                </button>
+                <button
+                  className=${similarMethod === "knn" ? "toggle-button is-active" : "toggle-button"}
+                  onClick=${() => setSimilarMethod("knn")}
+                >
+                  k-NN
+                </button>
+              </div>
+            `}
+          />
           ${similarLoading
             ? html`<${LoadingBlock} label="Ranking neighbors..." />`
             : html`
-                <div className="movie-grid movie-grid--compact">
-                  ${(similarResults || []).map(
+                ${featuredRecommendation
+                  ? html`<${FeatureBanner} movie=${featuredRecommendation} eyebrow="Top match" />`
+                  : html`<div className="empty-state">Choose a movie to populate this recommendation shelf.</div>`}
+                <div className="compact-card-list">
+                  ${quickPicks.map(
                     (movie, index) => html`
-                      <${MovieCard}
+                      <${CompactMovieRow}
                         movie=${movie}
-                        badge=${`#${index + 1}`}
+                        badge=${`#${index + 2}`}
+                        onSelect=${onSelectMovie}
                       />
                     `
                   )}
@@ -421,7 +516,7 @@ function SurpriseSection({ movie, loading, error, onRefresh }) {
       ${loading
         ? html`<${LoadingBlock} label="Pulling a high-quality random pick..." />`
         : movie
-          ? html`<${MovieCard} movie=${movie} actionLabel="" />`
+          ? html`<${CompactMovieRow} movie=${movie} />`
           : null}
     </section>
   `;
@@ -486,9 +581,14 @@ function PersonalizationSection({
               <div className="personalized-meta">
                 <strong>Seed movies:</strong> ${results.seed_movies.map((movie) => movie.title).join(", ")}
               </div>
-              <div className="movie-grid">
+              <div className="poster-rail">
                 ${results.recommendations.map(
-                  (movie, index) => html`<${MovieCard} movie=${movie} badge=${`For You ${index + 1}`} />`
+                  (movie, index) => html`
+                    <${PosterTile}
+                      movie=${movie}
+                      label=${`For You ${index + 1}`}
+                    />
+                  `
                 )}
               </div>
             `
@@ -567,9 +667,14 @@ function LetterboxdSection({
                 <p>${result.message}</p>
                 <p>Imported titles: ${result.imported_titles.join(", ")}</p>
               </div>
-              <div className="movie-grid">
+              <div className="poster-rail">
                 ${result.recommendations.map(
-                  (movie, index) => html`<${MovieCard} movie=${movie} badge=${`LBXD ${index + 1}`} />`
+                  (movie, index) => html`
+                    <${PosterTile}
+                      movie=${movie}
+                      label=${`LBXD ${index + 1}`}
+                    />
+                  `
                 )}
               </div>
             `
@@ -779,21 +884,30 @@ export function App() {
     setFilters((current) => ({ ...current, [key]: value }));
   }
 
+  const heroBackdrop = seedMovie?.backdrop_url || randomMovie?.backdrop_url || "";
+
   return html`
     <div className="page-shell">
-      <header className="hero">
+      <header
+        className="hero"
+        style=${heroBackdrop
+          ? {
+              backgroundImage: `linear-gradient(90deg, rgba(6, 7, 10, 0.94), rgba(6, 7, 10, 0.54) 40%, rgba(6, 7, 10, 0.92)), url(${heroBackdrop})`,
+            }
+          : undefined}
+      >
         <div className="hero__copy">
           <p className="hero__eyebrow">CineMatch ML</p>
-          <h1>Movie recommendations that actually show the machine learning.</h1>
+          <h1>Your own movie shelf, tuned by metadata and taste.</h1>
           <p className="hero__lede">
-            Content features, cosine similarity, nearest neighbors, quality-aware reranking, and practical
-            personalization from favorites or Letterboxd exports.
+            A darker, streaming-style interface over real recommendation logic: TF-IDF metadata vectors,
+            cosine similarity, nearest neighbors, and personalization from favorites or Letterboxd exports.
           </p>
           <div className="hero__chips">
-            <span>TF-IDF metadata embeddings</span>
-            <span>k-NN retrieval</span>
+            <span>Real TMDb + MovieLens data</span>
+            <span>Cosine similarity + k-NN</span>
+            <span>Streaming-service filters</span>
             <span>Letterboxd CSV personalization</span>
-            <span>FastAPI + React</span>
           </div>
         </div>
 
@@ -803,12 +917,12 @@ export function App() {
             <strong>${health?.movie_count || "..."}</strong>
           </div>
           <div className="stat-card">
-            <span>Dataset mode</span>
-            <strong>${health?.demo_mode ? "Offline demo" : "Full dataset"}</strong>
+            <span>Mode</span>
+            <strong>${health?.demo_mode ? "Offline demo" : "Deploy shelf"}</strong>
           </div>
           <div className="stat-card">
-            <span>Source</span>
-            <strong>${health?.dataset_source || "Loading..."}</strong>
+            <span>Region</span>
+            <strong>${streamingProviders?.watch_region || health?.watch_region || "US"} streaming</strong>
           </div>
         </div>
       </header>
