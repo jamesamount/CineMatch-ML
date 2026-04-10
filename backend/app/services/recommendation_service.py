@@ -5,6 +5,7 @@ from functools import lru_cache
 from ml.build_pipeline import main as build_pipeline
 from ml.config import ARTIFACT_PATH
 from ml.recommender import MovieRecommenderEngine
+from backend.app.services.streaming_providers import TMDbStreamingProviderService
 
 
 @lru_cache(maxsize=1)
@@ -13,3 +14,7 @@ def get_recommendation_engine() -> MovieRecommenderEngine:
         build_pipeline()
     return MovieRecommenderEngine.from_path(ARTIFACT_PATH)
 
+
+@lru_cache(maxsize=1)
+def get_streaming_provider_service() -> TMDbStreamingProviderService:
+    return TMDbStreamingProviderService()

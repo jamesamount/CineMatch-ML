@@ -19,6 +19,8 @@ class MovieCard(BaseModel):
     poster_url: str = ""
     source: str = ""
     quality_score: float = 0.0
+    streaming_services: list[str] = Field(default_factory=list)
+    watch_link: str = ""
     similarity: float | None = None
     hybrid_score: float | None = None
 
@@ -52,6 +54,7 @@ class PersonalizedRequest(BaseModel):
     decade: int | None = None
     min_rating: float | None = None
     runtime_max: int | None = None
+    streaming_services: str | None = None
 
 
 class PersonalizedResponse(BaseModel):
@@ -78,4 +81,18 @@ class HealthResponse(BaseModel):
     genres: list[str]
     decades: list[int]
     model_version: str
+    streaming_filter_enabled: bool
+    watch_region: str
 
+
+class StreamingProvider(BaseModel):
+    provider_id: int
+    provider_name: str
+    logo_path: str = ""
+
+
+class StreamingProvidersResponse(BaseModel):
+    enabled: bool
+    watch_region: str
+    providers: list[StreamingProvider]
+    message: str = ""

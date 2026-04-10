@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
@@ -16,9 +17,14 @@ from backend.app.schemas import (
     RandomResponse,
     SearchResponse,
     SimilarResponse,
+    StreamingProvidersResponse,
 )
 from backend.app.services.letterboxd import LetterboxdImportError, LetterboxdImporter
-from backend.app.services.recommendation_service import get_recommendation_engine
+from backend.app.services.recommendation_service import (
+    get_recommendation_engine,
+    get_streaming_provider_service,
+)
+from backend.app.services.streaming_providers import StreamingProviderError
 from ml.recommender import RecommendationError
 
 app = FastAPI(
@@ -26,6 +32,30 @@ app = FastAPI(
     description="A portfolio-ready movie recommendation engine using content features, cosine similarity, and k-NN retrieval.",
     version="1.0.0",
 )
+
+
+def _parse_streaming_services(raw_value: str | None) -> list[str]:
+    if not raw_value or not isinstance(raw_value, str):
+        return []
+    return [item.strip() for item in raw_value.split(",") if item.strip()]
+
+
+def _apply_streaming_filter(
+    movies: list[dict],
+    *,
+    selected_services: list[str],
+    expand_pool_message: str | None = None,
+) -> list[dict]:
+    streaming_service = get_streaming_provider_service()
+    if not selected_services:
+        return movies
+    try:
+        filtered = streaming_service.filter_movies(movies, selected_services)
+    except StreamingProviderError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    if not filtered and expand_pool_message:
+        raise HTTPException(status_code=404, detail=expand_pool_message)
+    return filtered
 
 app.add_middleware(
     CORSMiddleware,
@@ -51,6 +81,7 @@ def frontend_index() -> FileResponse:
 def health() -> HealthResponse:
     engine = get_recommendation_engine()
     filters = engine.list_filters()
+    streaming_service = get_streaming_provider_service()
     return HealthResponse(
         status="ok",
         dataset_source=filters["dataset_source"],
@@ -59,6 +90,20 @@ def health() -> HealthResponse:
         genres=filters["genres"],
         decades=filters["decades"],
         model_version=engine.artifact["model_version"],
+        streaming_filter_enabled=streaming_service.enabled,
+        watch_region=streaming_service.watch_region,
+    )
+
+
+@app.get("/streaming/providers", response_model=StreamingProvidersResponse)
+def streaming_providers() -> StreamingProvidersResponse:
+    streaming_service = get_streaming_provider_service()
+    providers = streaming_service.list_providers()
+    return StreamingProvidersResponse(
+        enabled=streaming_service.enabled,
+        watch_region=streaming_service.watch_region,
+        providers=providers,
+        message=streaming_service.provider_message(),
     )
 
 
@@ -70,16 +115,23 @@ def search_movies(
     decade: int | None = Query(None),
     min_rating: float | None = Query(None, ge=0, le=10),
     runtime_max: int | None = Query(None, ge=1),
+    streaming_services: str | None = Query(None),
 ) -> SearchResponse:
     engine = get_recommendation_engine()
+    requested_services = _parse_streaming_services(streaming_services)
     results = engine.search(
         q,
-        limit=limit,
+        limit=max(limit * 4, limit),
         genre=genre,
         decade=decade,
         min_rating=min_rating,
         runtime_max=runtime_max,
     )
+    results = _apply_streaming_filter(
+        results,
+        selected_services=requested_services,
+        expand_pool_message="No search results matched the selected streaming services.",
+    )[:limit]
     return SearchResponse(query=q, results=results)
 
 
@@ -93,14 +145,16 @@ def recommend_similar(
     decade: int | None = Query(None),
     min_rating: float | None = Query(None, ge=0, le=10),
     runtime_max: int | None = Query(None, ge=1),
+    streaming_services: str | None = Query(None),
 ) -> SimilarResponse:
     engine = get_recommendation_engine()
+    requested_services = _parse_streaming_services(streaming_services)
     try:
         payload = engine.similar_movies(
             movie_id=movie_id,
             title=title,
             method=method,
-            top_n=top_n,
+            top_n=max(top_n * 4, top_n),
             genre=genre,
             decade=decade,
             min_rating=min_rating,
@@ -108,6 +162,11 @@ def recommend_similar(
         )
     except RecommendationError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    payload["recommendations"] = _apply_streaming_filter(
+        payload["recommendations"],
+        selected_services=requested_services,
+        expand_pool_message="No similar movies matched the selected streaming services.",
+    )[:top_n]
     return SimilarResponse(method=method, **payload)
 
 
@@ -117,15 +176,34 @@ def recommend_random(
     decade: int | None = Query(None),
     min_rating: float | None = Query(None, ge=0, le=10),
     runtime_max: int | None = Query(None, ge=1),
+    streaming_services: str | None = Query(None),
 ) -> RandomResponse:
     engine = get_recommendation_engine()
+    requested_services = _parse_streaming_services(streaming_services)
     try:
-        movie = engine.random_movie(
-            genre=genre,
-            decade=decade,
-            min_rating=min_rating,
-            runtime_max=runtime_max,
-        )
+        if requested_services:
+            candidate_titles = engine.catalog_candidates(
+                genre=genre,
+                decade=decade,
+                min_rating=min_rating,
+                runtime_max=runtime_max,
+                limit=max(len(engine.catalog), 250),
+            )
+            filtered = _apply_streaming_filter(
+                candidate_titles,
+                selected_services=requested_services,
+                expand_pool_message="No random candidates matched the selected streaming services.",
+            )
+            if not filtered:
+                raise RecommendationError("No random candidates matched the selected streaming services.")
+            movie = random.choice(filtered)
+        else:
+            movie = engine.random_movie(
+                genre=genre,
+                decade=decade,
+                min_rating=min_rating,
+                runtime_max=runtime_max,
+            )
     except RecommendationError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return RandomResponse(movie=movie)
@@ -138,7 +216,7 @@ def recommend_personalized(payload: PersonalizedRequest) -> PersonalizedResponse
         result = engine.personalized_recommendations(
             favorite_titles=payload.favorite_titles,
             rated_movies=[entry.model_dump() for entry in payload.rated_movies],
-            top_n=payload.top_n,
+            top_n=max(payload.top_n * 4, payload.top_n),
             genre=payload.genre,
             decade=payload.decade,
             min_rating=payload.min_rating,
@@ -146,6 +224,12 @@ def recommend_personalized(payload: PersonalizedRequest) -> PersonalizedResponse
         )
     except RecommendationError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    selected_services = _parse_streaming_services(getattr(payload, "streaming_services", None))
+    result["recommendations"] = _apply_streaming_filter(
+        result["recommendations"],
+        selected_services=selected_services,
+        expand_pool_message="No personalized recommendations matched the selected streaming services.",
+    )[: payload.top_n]
     return PersonalizedResponse(**result)
 
 
@@ -159,6 +243,7 @@ async def import_letterboxd(
     decade: int | None = Form(None),
     min_rating: float | None = Form(None),
     runtime_max: int | None = Form(None),
+    streaming_services: str | None = Form(None),
 ) -> LetterboxdImportResponse:
     engine = get_recommendation_engine()
     importer = LetterboxdImporter()
@@ -182,7 +267,7 @@ async def import_letterboxd(
         result = engine.personalized_recommendations(
             favorite_titles=favorite_titles,
             rated_movies=rated_movies,
-            top_n=top_n,
+            top_n=max(top_n * 4, top_n),
             genre=genre,
             decade=decade,
             min_rating=min_rating,
@@ -192,6 +277,13 @@ async def import_letterboxd(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RecommendationError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    selected_services = _parse_streaming_services(streaming_services)
+    result["recommendations"] = _apply_streaming_filter(
+        result["recommendations"],
+        selected_services=selected_services,
+        expand_pool_message="No Letterboxd recommendations matched the selected streaming services.",
+    )[:top_n]
 
     return LetterboxdImportResponse(
         imported_count=len(frame),

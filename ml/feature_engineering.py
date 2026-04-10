@@ -23,6 +23,8 @@ NUMERIC_COLUMNS = [
     "avg_user_rating",
     "user_rating_count",
 ]
+TEXT_FEATURE_WEIGHT = 1.0
+NUMERIC_FEATURE_WEIGHT = 0.18
 
 
 @dataclass(slots=True)
@@ -81,13 +83,20 @@ def build_artifact(catalog: pd.DataFrame, dataset_source: str) -> ArtifactBuildR
         max_features=15000,
         min_df=1,
     )
-    text_matrix = vectorizer.fit_transform(working["text_blob"])
+    text_matrix = normalize(vectorizer.fit_transform(working["text_blob"]))
 
     numeric_frame = working[NUMERIC_COLUMNS].apply(pd.to_numeric, errors="coerce").fillna(0.0)
-    scaler = StandardScaler(with_mean=False)
-    numeric_matrix = sparse.csr_matrix(scaler.fit_transform(numeric_frame))
+    scaler = StandardScaler()
+    numeric_matrix = normalize(sparse.csr_matrix(scaler.fit_transform(numeric_frame)))
 
-    feature_matrix = normalize(sparse.hstack([text_matrix, numeric_matrix]).tocsr())
+    feature_matrix = normalize(
+        sparse.hstack(
+            [
+                text_matrix * TEXT_FEATURE_WEIGHT,
+                numeric_matrix * NUMERIC_FEATURE_WEIGHT,
+            ]
+        ).tocsr()
+    )
 
     nn_model = NearestNeighbors(metric="cosine", algorithm="brute", n_neighbors=min(50, len(working)))
     nn_model.fit(feature_matrix)
@@ -100,8 +109,12 @@ def build_artifact(catalog: pd.DataFrame, dataset_source: str) -> ArtifactBuildR
         "nn_model": nn_model,
         "dataset_source": dataset_source,
         "built_at_utc": datetime.now(timezone.utc).isoformat(),
-        "model_version": "1.0.0",
+        "model_version": "1.1.0",
         "numeric_columns": NUMERIC_COLUMNS,
+        "feature_weights": {
+            "text": TEXT_FEATURE_WEIGHT,
+            "numeric": NUMERIC_FEATURE_WEIGHT,
+        },
     }
 
     preview = working[
@@ -124,4 +137,3 @@ def save_artifact(result: ArtifactBuildResult) -> None:
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     joblib.dump(result.artifact, ARTIFACT_PATH)
     result.catalog_preview.to_csv(PROCESSED_CATALOG_PATH, index=False)
-

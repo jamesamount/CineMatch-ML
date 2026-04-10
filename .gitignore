@@ -2,8 +2,14 @@
 __pycache__/
 .pytest_cache/
 .DS_Store
-models/artifacts/*.joblib
 data/processed/*.csv
 backend/app/__pycache__/
 ml/__pycache__/
 
+.env
+data/raw/
+models/*
+!models/artifacts/
+models/artifacts/*
+!models/artifacts/movie_recommender.joblib
+models/artifacts/*.joblib

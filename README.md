@@ -175,6 +175,54 @@ uvicorn backend.app.main:app --reload
 
 Open [http://localhost:8000](http://localhost:8000).
 
+### 5. After the build finishes
+
+If the build succeeds, the next step is to run the app and verify it is using the expected dataset:
+
+```bash
+uvicorn backend.app.main:app --reload
+```
+
+Then open:
+
+- `http://localhost:8000`
+- `http://localhost:8000/health`
+
+If `/health` shows `demo_mode: false`, the full dataset was picked up successfully.
+
+## Deploying larger datasets
+
+The app now supports environment-based storage overrides, which makes hosting easier when you want to move beyond the built-in demo catalog:
+
+- `MOVIE_DATA_DIR`
+- `MOVIE_RAW_TMDB_DIR`
+- `MOVIE_RAW_MOVIELENS_DIR`
+- `MOVIE_PROCESSED_DIR`
+- `MOVIE_MODELS_DIR`
+- `MOVIE_ARTIFACT_PATH`
+
+This is useful if your host mounts a separate disk or storage directory and you want the app to read raw data and model artifacts from there instead of the repo checkout.
+
+## Streaming-service filters
+
+The app now supports filtering recommendations by streaming services you already have, but this feature depends on TMDb watch-provider data at runtime.
+
+Set one of these backend environment variables:
+
+- `TMDB_API_READ_ACCESS_TOKEN`
+- `TMDB_API_KEY`
+
+Optional:
+
+- `TMDB_WATCH_REGION=US`
+
+Once configured, the UI can:
+
+- list available providers
+- let users select the services they have
+- filter search, similar, random, personalized, and Letterboxd recommendation results
+- attach "Where to watch" links when TMDb provides them
+
 ## Example user flows
 
 ### Search and similar retrieval
@@ -225,4 +273,3 @@ Suggested next steps for a deeper portfolio write-up:
 - The frontend is React, but intentionally buildless so it can run through FastAPI without a Node toolchain.
 - The real preprocessing and recommendation logic lives in the Python pipeline, not the UI.
 - Demo mode exists only to keep the repository runnable when large external datasets are not bundled.
-

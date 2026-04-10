@@ -11,6 +11,7 @@ import {
   getPersonalizedRecommendations,
   getRandomMovie,
   getSimilarMovies,
+  getStreamingProviders,
   importLetterboxd,
   searchMovies,
 } from "./api.js";
@@ -22,6 +23,7 @@ const emptyFilters = {
   decade: "",
   minRating: "",
   runtimeMax: "",
+  streamingServices: "",
 };
 
 function formatGenres(genres = []) {
@@ -57,6 +59,7 @@ function toApiFilters(filters) {
     decade: filters.decade ? Number(filters.decade) : undefined,
     min_rating: filters.minRating ? Number(filters.minRating) : undefined,
     runtime_max: filters.runtimeMax ? Number(filters.runtimeMax) : undefined,
+    streaming_services: filters.streamingServices || undefined,
   };
 }
 
@@ -70,9 +73,21 @@ function InlineError({ message }) {
 }
 
 function MovieCard({ movie, badge, onSelect, actionLabel = "Find similar" }) {
+  const posterHue = Math.abs(
+    Array.from(`${movie.title}${movie.year || ""}`).reduce(
+      (accumulator, character) => accumulator + character.charCodeAt(0),
+      0
+    )
+  ) % 360;
   const posterStyle = movie.poster_url
-    ? { backgroundImage: `linear-gradient(180deg, rgba(6, 10, 14, 0.18), rgba(6, 10, 14, 0.78)), url(${movie.poster_url})` }
-    : undefined;
+    ? {
+        backgroundImage: `linear-gradient(180deg, rgba(6, 10, 14, 0.18), rgba(6, 10, 14, 0.78)), url(${movie.poster_url})`,
+      }
+    : {
+        backgroundImage: `linear-gradient(160deg, hsla(${posterHue}, 70%, 58%, 0.65), hsla(${
+          (posterHue + 48) % 360
+        }, 65%, 38%, 0.42)), radial-gradient(circle at top right, rgba(255,255,255,0.18), transparent 36%), linear-gradient(180deg, #20313b, #121a20)`,
+      };
 
   return html`
     <article className="movie-card">
@@ -83,6 +98,7 @@ function MovieCard({ movie, badge, onSelect, actionLabel = "Find similar" }) {
               <div className="poster-fallback">
                 <span className="poster-fallback__year">${movie.year || "Now"}</span>
                 <strong>${movie.title}</strong>
+                <span className="poster-fallback__genre">${movie.genres?.[0] || "Feature Film"}</span>
               </div>
             `}
         ${badge ? html`<span className="movie-card__badge">${badge}</span>` : null}
@@ -98,23 +114,59 @@ function MovieCard({ movie, badge, onSelect, actionLabel = "Find similar" }) {
           <span>User ${movie.user_rating?.toFixed?.(1) || movie.user_rating}</span>
           ${movie.similarity ? html`<span>Match ${(movie.similarity * 100).toFixed(0)}%</span>` : null}
         </div>
+        ${movie.streaming_services?.length
+          ? html`
+              <div className="movie-card__services">
+                ${movie.streaming_services.slice(0, 4).map(
+                  (service) => html`<span>${service}</span>`
+                )}
+              </div>
+            `
+          : null}
         <p className="movie-card__overview">${movie.overview}</p>
         <div className="movie-card__footer">
           <span>Dir. ${movie.director || "Unknown"}</span>
-          ${onSelect
-            ? html`
-                <button className="secondary-button" onClick=${() => onSelect(movie)}>
-                  ${actionLabel}
-                </button>
-              `
-            : null}
+          <div className="movie-card__actions">
+            ${movie.watch_link
+              ? html`
+                  <a className="secondary-button secondary-button--link" href=${movie.watch_link} target="_blank" rel="noreferrer">
+                    Where to watch
+                  </a>
+                `
+              : null}
+            ${onSelect
+              ? html`
+                  <button className="secondary-button" onClick=${() => onSelect(movie)}>
+                    ${actionLabel}
+                  </button>
+                `
+              : null}
+          </div>
         </div>
       </div>
     </article>
   `;
 }
 
-function FilterBar({ health, filters, onChange, onReset }) {
+function parseStreamingServices(text) {
+  return text
+    .split(",")
+    .map((service) => service.trim())
+    .filter(Boolean);
+}
+
+function toggleProvider(filters, onChange, providerName) {
+  const selected = new Set(parseStreamingServices(filters.streamingServices));
+  if (selected.has(providerName)) {
+    selected.delete(providerName);
+  } else {
+    selected.add(providerName);
+  }
+  onChange("streamingServices", Array.from(selected).join(", "));
+}
+
+function FilterBar({ health, filters, onChange, onReset, streamingProviders }) {
+  const selectedProviders = new Set(parseStreamingServices(filters.streamingServices));
   return html`
     <section className="filter-bar">
       <div className="filter-bar__heading">
@@ -171,6 +223,38 @@ function FilterBar({ health, filters, onChange, onReset }) {
           />
         </label>
       </div>
+      <label className="streaming-field">
+        <span>Streaming services you have</span>
+        <input
+          type="text"
+          value=${filters.streamingServices}
+          onInput=${(event) => onChange("streamingServices", event.target.value)}
+          placeholder="Netflix, Hulu, Max, Disney Plus"
+          disabled=${streamingProviders && !streamingProviders.enabled}
+        />
+        <small>
+          ${streamingProviders?.enabled
+            ? `Filter titles by streaming availability in ${streamingProviders.watch_region}.`
+            : streamingProviders?.message || "Streaming filters are unavailable right now."}
+        </small>
+      </label>
+      ${streamingProviders?.providers?.length
+        ? html`
+            <div className="provider-chip-row">
+              ${streamingProviders.providers.slice(0, 16).map(
+                (provider) => html`
+                  <button
+                    className=${selectedProviders.has(provider.provider_name) ? "provider-chip is-active" : "provider-chip"}
+                    onClick=${() => toggleProvider(filters, onChange, provider.provider_name)}
+                    type="button"
+                  >
+                    ${provider.provider_name}
+                  </button>
+                `
+              )}
+            </div>
+          `
+        : null}
       <button className="ghost-button" onClick=${onReset}>Reset filters</button>
     </section>
   `;
@@ -450,6 +534,7 @@ function LetterboxdSection({
 export function App() {
   const [health, setHealth] = useState(null);
   const [appError, setAppError] = useState("");
+  const [streamingProviders, setStreamingProviders] = useState(null);
 
   const [filters, setFilters] = useState(emptyFilters);
 
@@ -486,6 +571,8 @@ export function App() {
       try {
         const payload = await getHealth();
         setHealth(payload);
+        const providerPayload = await getStreamingProviders();
+        setStreamingProviders(providerPayload);
       } catch (error) {
         setAppError(error.message);
       }
@@ -531,7 +618,7 @@ export function App() {
     }
 
     runSearch();
-  }, [deferredQuery, filters.genre, filters.decade, filters.minRating, filters.runtimeMax]);
+  }, [deferredQuery, filters.genre, filters.decade, filters.minRating, filters.runtimeMax, filters.streamingServices]);
 
   useEffect(() => {
     async function runSimilar() {
@@ -556,11 +643,11 @@ export function App() {
     }
 
     runSimilar();
-  }, [selectedMovie, similarMethod, filters.genre, filters.decade, filters.minRating, filters.runtimeMax]);
+  }, [selectedMovie, similarMethod, filters.genre, filters.decade, filters.minRating, filters.runtimeMax, filters.streamingServices]);
 
   useEffect(() => {
     refreshRandomMovie();
-  }, [filters.genre, filters.decade, filters.minRating, filters.runtimeMax]);
+  }, [filters.genre, filters.decade, filters.minRating, filters.runtimeMax, filters.streamingServices]);
 
   async function refreshRandomMovie() {
     try {
@@ -666,6 +753,7 @@ export function App() {
         health=${health}
         filters=${filters}
         onChange=${updateFilter}
+        streamingProviders=${streamingProviders}
         onReset=${() => setFilters({ ...emptyFilters })}
       />
 

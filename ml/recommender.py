@@ -30,6 +30,24 @@ class MovieRecommenderEngine:
         artifact = joblib.load(artifact_path)
         return cls(artifact)
 
+    @staticmethod
+    def fix_poster_url(path) -> str:
+        if path is None:
+            return ""
+
+        if pd.isna(path):
+            return ""
+
+        path = str(path).strip()
+        if not path or path.lower() == "nan":
+            return ""
+
+        if path.startswith("http"):
+            return path.replace("/w342/", "/w500/")
+
+        clean = path if path.startswith("/") else f"/{path}"
+        return f"https://image.tmdb.org/t/p/w500{clean}"
+
     def _base_record(self, row: pd.Series) -> dict:
         return {
             "movie_id": str(row["movie_id"]),
@@ -42,7 +60,7 @@ class MovieRecommenderEngine:
             "popularity": round(float(row["popularity"]), 2),
             "runtime": int(row["runtime"]) if row["runtime"] else None,
             "overview": row["overview"],
-            "poster_url": row["poster_url"],
+            "poster_url": self.fix_poster_url(row.get("poster_path")),
             "source": row["source"],
             "quality_score": round(float(row["quality_score"]), 4),
         }
@@ -127,6 +145,30 @@ class MovieRecommenderEngine:
             if len(results) >= limit:
                 break
         return results
+
+    def catalog_candidates(
+        self,
+        *,
+        genre: str | None = None,
+        decade: int | None = None,
+        min_rating: float | None = None,
+        runtime_max: int | None = None,
+        limit: int | None = None,
+    ) -> list[dict]:
+        candidates = self.catalog.sort_values(["quality_score", "popularity"], ascending=[False, False])
+        records: list[dict] = []
+        for _, row in candidates.iterrows():
+            if self._passes_filters(
+                row,
+                genre=genre,
+                decade=decade,
+                min_rating=min_rating,
+                runtime_max=runtime_max,
+            ):
+                records.append(self._base_record(row))
+            if limit is not None and len(records) >= limit:
+                break
+        return records
 
     @lru_cache(maxsize=1024)
     def _similar_cached(

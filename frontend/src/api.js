@@ -32,6 +32,10 @@ export function getHealth() {
   return request("/health");
 }
 
+export function getStreamingProviders() {
+  return request("/streaming/providers");
+}
+
 export function searchMovies(params) {
   return request(`/search?${buildQuery(params)}`);
 }
@@ -58,4 +62,3 @@ export function importLetterboxd(formData) {
     body: formData,
   });
 }
-
