@@ -2,7 +2,7 @@
 
 # https://cinematch-ml.onrender.com
 
-CineMatch ML is a polished full-stack movie recommendation engine built to showcase practical machine learning, retrieval, and personalization work in a portfolio setting. It combines real-world movie metadata with vector-based similarity, nearest-neighbor retrieval, random discovery, and user taste profiling from favorite movies or Letterboxd exports.
+CineMatch ML is a polished full-stack movie recommendation engine built to showcase practical machine learning, retrieval, and personalization work. It combines movie metadata with vector-based similarity, nearest-neighbor retrieval, random discovery, and user taste profiling from favorite movies or Letterboxd exports.
 
 ## What the app does
 
