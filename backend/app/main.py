@@ -139,6 +139,7 @@ def search_movies(
         selected_services=requested_services,
         expand_pool_message="No search results matched the selected streaming services.",
     )[:limit]
+    results = _enrich_media(results)
     return SearchResponse(query=q, results=results)
 
 
