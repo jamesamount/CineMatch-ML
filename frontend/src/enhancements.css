@@ -1,0 +1,310 @@
+/* ============================================================================
+   Awwwards-Level Design Enhancements for CineMatch ML
+   Cinematic, Premium, Award-Winning Visual Patterns
+   ============================================================================ */
+
+/* ----- 1. CINEMATIC AURORA BACKGROUND ANIMATION -----
+   Creates animated gradient flows for premium motion feel */
+@property --aurora-x {
+  syntax: '<percentage>';
+  initial-value: 0%;
+  inherits: false;
+}
+
+@property --aurora-y {
+  syntax: '<percentage>';
+  initial-value: 0%;
+  inherits: false;
+}
+
+@keyframes aurora-flow {
+  0%, 100% { --aurora-x: 0%; --aurora-y: 0%; }
+  25% { --aurora-x: 100%; --aurora-y: 50%; }
+  50% { --aurora-x: 50%; --aurora-y: 100%; }
+  75% { --aurora-x: 0%; --aurora-y: 50%; }
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at var(--aurora-x) var(--aurora-y),
+      rgba(229, 9, 20, 0.12) 0%,
+      transparent 40%),
+    radial-gradient(ellipse at calc(100% - var(--aurora-x)) var(--aurora-y),
+      rgba(255, 93, 104, 0.08) 0%,
+      transparent 45%);
+  animation: aurora-flow 20s ease-in-out infinite;
+}
+
+/* ----- 2. CUSTOM CURSOR WITH GLOW TRAIL -----
+   Premium interactive cursor that follows mouse pointer */
+.cursor-glow {
+  position: fixed;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(229, 9, 20, 0.8), transparent 60%);
+  pointer-events: none;
+  z-index: 9999;
+  transition: transform 0.1s ease;
+  mix-blend-mode: screen;
+}
+
+.cursor-glow::after {
+  content: "";
+  position: absolute;
+  top: -12px;
+  left: -12px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(229, 9, 20, 0.25), transparent 70%);
+  animation: cursor-pulse 2s ease-in-out infinite;
+}
+
+@keyframes cursor-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.2); opacity: 0.3; }
+}
+
+/* Enable custom cursor on interactive elements */
+button, a, .movie-card, .poster-tile, .search-pill {
+  cursor: none;
+}
+
+/* ----- 3. ADVANCED GLASSMORPHISM LAYERS -----
+   Multiple blur depths for authentic glass effect */
+.panel {
+  position: relative;
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+}
+
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(circle at top right,
+    rgba(255, 255, 255, 0.06) 0%,
+    transparent 40%);
+  border-radius: inherit;
+  filter: blur(4px);
+}
+
+/* ----- 4. TYPOGRAPHY GRADIENT ANIMATIONS -----
+   Color-cycling text effects for headings */
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.hero h1,
+.panel h2 {
+  background: linear-gradient(135deg,
+    var(--text) 0%,
+    var(--accent-bright) 50%,
+    var(--text) 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-fill-color: transparent;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* ----- 5. MICRO-INTERACTIONS & SPRING BUTTONS -----
+   Subtle motion on every interaction */
+@keyframes button-spring {
+  0% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-2px) scale(1.02); }
+  100% { transform: translateY(-1px) scale(1); }
+}
+
+.primary-button,
+.secondary-button,
+.ghost-button {
+  position: relative;
+  overflow: hidden;
+  transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.primary-button:hover,
+.secondary-button:hover {
+  animation: button-spring 240ms ease-out;
+  filter: brightness(1.12) saturate(1.2);
+}
+
+.primary-button:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Button ripple effect */
+.primary-button::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.3), transparent);
+  border-radius: 50%;
+  transition: width 300ms, height 300ms, top 300ms, left 300ms;
+}
+
+.primary-button:hover::before {
+  width: 120px;
+  height: 120px;
+  top: calc(50% - 60px);
+  left: calc(50% - 60px);
+}
+
+/* ----- 6. SCROLL-TRIGGERED REVEALS with IntersectionObserver -----
+   Progressive disclosure as elements enter viewport */
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(24px);
+  filter: blur(4px);
+  will-change: transform, opacity, filter;
+}
+
+.reveal-on-scroll.revealed {
+  animation: reveal-up 600ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+/* ----- 7. CARD 3D DEPTH ON HOVER -----
+   Perspective shifts and shadow expansion */
+.movie-card,
+.compact-card,
+.poster-tile {
+  transform-style: preserve-3d;
+  transition: transform 320ms cubic-bezier(0.25, 0.8, 0.25, 1),
+                box-shadow 320ms ease,
+                filter 320ms ease;
+}
+
+.movie-card:hover {
+  transform: perspective(1000px) rotateX(2deg) rotateY(-1deg) translateY(-8px);
+  box-shadow: 0 36px 120px rgba(229, 9, 20, 0.25), var(--shadow);
+  filter: brightness(1.08) contrast(1.05);
+}
+
+.poster-tile:hover {
+  transform: perspective(800px) rotateX(3deg) translateY(-6px) scale(1.02);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+}
+
+/* ----- 8. ENHANCED LOADING -----
+   Cinematic spinner with breathing animation */
+.loading-cinematic {
+  display: inline-block;
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(229, 9, 20, 0.2);
+  border-top: 4px solid var(--accent);
+  border-radius: 50%;
+  animation:
+    spin 1.5s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite,
+    pulse 2s ease-in-out infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.1); }
+}
+
+/* Replace default loading with cinematic version */
+.loading-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 3rem;
+  background: transparent;
+}
+
+.loading-block .loading-cinematic {
+  margin-bottom: 1.5rem;
+}
+
+/* ----- 9. SVG FILTER EFFECTS for advanced polish -----
+   Create color-filters.js for overlay effects */
+.feature-banner,
+.feature-banner__overlay {
+  filter: url(#cinematic-glow);
+}
+
+/* ----- 10. SECTION PAGE TRANSITIONS -----
+   Smooth fade between content sections */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 400ms ease, transform 400ms ease;
+}
+
+/* ----- 11. TYPOGRAPHY OUTLINE-TO-FILL ANIMATION -----
+   Chameleon text effect for hero */
+.hero h1 {
+  text-shadow:
+    0 0 20px rgba(229, 9, 20, 0.4),
+    0 0 40px rgba(229, 9, 20, 0.2);
+}
+
+.hero h1:hover {
+  animation: title-pulse 4s ease-in-out infinite;
+}
+
+@keyframes title-pulse {
+  0%, 100% {
+    text-shadow:
+      0 0 20px rgba(229, 9, 20, 0.4),
+      0 0 40px rgba(229, 9, 20, 0.2);
+  }
+  50% {
+    text-shadow:
+      0 0 30px rgba(229, 9, 20, 0.6),
+      0 0 60px rgba(229, 9, 20, 0.4);
+  }
+}
+
+/* ----- 12. GRID PATTERN OVERLAY for subtexture -----
+   Adds subtle film-grain or tech-grid pattern */
+.feature-banner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 25% 25%, rgba(255,255,255,0.02) 1px, transparent 1px),
+    radial-gradient(circle at 75% 75%, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 80px 80px;
+  pointer-events: none;
+}
