@@ -1,0 +1,499 @@
+/* ============================================================================
+   CINEMATIC EDITORIAL DESIGN SYSTEM
+   CineMatch ML - Premium Film Discovery Experience
+   ============================================================================ */
+
+:root {
+  /* True cinematic black/off-black foundation */
+  --cinema-black: #0a0a0a;
+  --cinema-offblack: #0f0f0f;
+  --cinema-charcoal: #1a1a1a;
+  --cinema-gray: #2a2a2a;
+
+  /* Cinematic highlight colors (Netflix red as accent) */
+  --cinema-crimson: #e50914;
+  --cinema-crimson-glow: #ff5d68;
+  --cinema-gold: #f5c518;
+  --cinema-gold-glow: #ffd700;
+
+  /* Typography colors */
+  --text-primary: #f4f4f4;
+  --text-secondary: #bbbbbb;
+  --text-muted: #888888;
+
+  /* Editorial typography */
+  --font-editorial: 'Playfair Display', serif;
+  --font-bold: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Grain/noise texture */
+  --grain-texture: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3Cfilter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.025'/%3E%3C/svg%3E");
+
+  /* Spatial system (editorial spacing) */
+  --space-xs: 0.5rem;
+  --space-sm: 1rem;
+  --space-md: 2rem;
+  --space-lg: 4rem;
+  --space-xl: 6rem;
+  --space-xxl: 8rem;
+
+  /* Shadows for spotlight/glow */
+  --glow-soft: 0 0 40px rgba(229, 9, 20, 0.3);
+  --glow-strong: 0 0 80px rgba(229, 9, 20, 0.5);
+  --spotlight: radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.8) 70%);
+}
+
+/* Reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
+html::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: var(--grain-texture);
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.3;
+}
+
+body {
+  font-family: var(--font-bold);
+  background: var(--cinema-black);
+  color: var(--text-primary);
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Custom Cursor */
+.cinema-cursor {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--cinema-crimson);
+  border-radius: 50%;
+  position: fixed;
+  pointer-events: none;
+  z-index: 10000;
+  mix-blend-mode: difference;
+  transition: transform 0.1s ease;
+}
+
+.cinema-cursor::after {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--cinema-crimson-glow), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.cinema-cursor.active::after {
+  opacity: 0.6;
+}
+
+/* Typography */
+.cinema-heading {
+  font-family: var(--font-editorial);
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+}
+
+.cinema-hero-title {
+  font-size: clamp(3.5rem, 12vw, 8rem);
+  color: var(--text-primary);
+  text-shadow: 0 4px 40px rgba(0,0,0,0.8);
+  margin-bottom: var(--space-md);
+}
+
+.cinema-subtitle {
+  font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+  color: var(--text-secondary);
+  font-weight: 400;
+  max-width: 60ch;
+  margin-bottom: var(--space-lg);
+}
+
+/* Hero Section */
+.cinema-hero {
+  min-height: 100vh;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: var(--space-xl) var(--space-lg);
+  overflow: hidden;
+}
+
+.cinema-hero::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--spotlight);
+  z-index: 1;
+}
+
+.cinema-hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 1400px;
+  width: 100%;
+}
+
+/* Poster Collage Background */
+.cinema-hero-posters {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  opacity: 0.15;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  gap: 0;
+}
+
+.cinema-hero-posters .poster-item {
+  background-size: cover;
+  background-position: center;
+  filter: grayscale(100%) contrast(1.2);
+}
+
+/* Search Area */
+.cinema-search-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 800px;
+}
+
+.cinema-search-input {
+  width: 100%;
+  padding: var(--space-md) var(--space-lg);
+  font-size: 1.25rem;
+  background: rgba(26, 26, 26, 0.8);
+  border: 2px solid transparent;
+  border-radius: 2px;
+  color: var(--text-primary);
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.cinema-search-input:focus {
+  outline: none;
+  border-color: var(--cinema-crimson);
+  background: rgba(30, 30, 30, 0.9);
+  box-shadow: var(--glow-soft);
+}
+
+/* Recommendation Area */
+.cinema-recommendations {
+  padding: var(--space-xxl) var(--space-lg);
+  background: linear-gradient(180deg, var(--cinema-black) 0%, var(--cinema-offblack) 100%);
+}
+
+.cinema-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--space-xl);
+  max-width: 1400px;
+  margin: 0 auto var(--space-xl);
+}
+
+.cinema-section-title {
+  font-family: var(--font-editorial);
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+/* Poster Cards - Horizontal Scrolling */
+.cinema-poster-rail {
+  display: flex;
+  gap: var(--space-md);
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: var(--space-md) 0 var(--space-lg);
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.cinema-poster-rail::-webkit-scrollbar {
+  display: none;
+}
+
+/* Poster Card Design */
+.cinema-poster-card {
+  flex: 0 0 auto;
+  width: 300px;
+  height: 450px;
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: none;
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.cinema-poster-card:hover {
+  transform: scale(1.05) translateY(-10px);
+}
+
+.cinema-poster-card:hover::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--spotlight);
+  opacity: 0.6;
+  z-index: 1;
+}
+
+.cinema-poster-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: filter 0.3s ease;
+}
+
+.cinema-poster-card:hover .cinema-poster-image {
+  filter: brightness(1.1) contrast(1.1);
+}
+
+.cinema-poster-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: var(--space-md);
+  background: linear-gradient(transparent, rgba(0,0,0,0.9));
+  transform: translateY(0);
+  transition: transform 0.3s ease;
+}
+
+.cinema-poster-card:hover .cinema-poster-overlay {
+  transform: translateY(0);
+}
+
+.cinema-poster-title {
+  font-family: var(--font-editorial);
+  font-size: 1.5rem;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.cinema-poster-year {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.cinema-poster-match {
+  display: inline-block;
+  background: var(--cinema-crimson);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 2px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-top: var(--space-sm);
+}
+
+/* Feature Strip */
+.cinema-feature-strip {
+  padding: var(--space-xl) var(--space-lg);
+  border-top: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.cinema-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-lg);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.cinema-feature-item {
+  position: relative;
+  padding: var(--space-lg);
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  transition: transform 0.3s ease;
+}
+
+.cinema-feature-item::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--cinema-crimson), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.cinema-feature-item:hover::before {
+  opacity: 1;
+}
+
+.cinema-feature-item:hover {
+  transform: translateY(-4px);
+}
+
+.cinema-feature-icon {
+  font-size: 3rem;
+  margin-bottom: var(--space-md);
+  color: var(--cinema-crimson);
+}
+
+.cinema-feature-title {
+  font-family: var(--font-editorial);
+  font-size: 1.5rem;
+  margin-bottom: var(--space-sm);
+}
+
+.cinema-feature-desc {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* Letterboxd Section (DNA Metaphor) */
+.cinema-letterboxd {
+  padding: var(--space-xxl) var(--space-lg);
+  background: var(--cinema-charcoal);
+  position: relative;
+}
+
+.cinema-letterboxd::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, transparent 30%, var(--cinema-black) 70%);
+  z-index: 1;
+}
+
+.cinema-letterboxd-content {
+  position: relative;
+  z-index: 2;
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.cinema-dna-icon {
+  font-size: 4rem;
+  margin-bottom: var(--space-lg);
+  color: var(--cinema-crimson);
+}
+
+.cinema-dna-title {
+  font-family: var(--font-editorial);
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 700;
+  margin-bottom: var(--space-lg);
+}
+
+.cinema-dna-desc {
+  font-size: 1.25rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-xl);
+  line-height: 1.5;
+}
+
+.cinema-letterboxd-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.cinema-textarea {
+  min-height: 120px;
+  padding: var(--space-md);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-primary);
+  font-size: 1rem;
+  resize: vertical;
+}
+
+.cinema-textarea:focus {
+  outline: none;
+  border-color: var(--cinema-crimson);
+  box-shadow: var(--glow-soft);
+}
+
+/* Footer */
+.cinema-footer {
+  padding: var(--space-lg);
+  background: var(--cinema-black);
+  text-align: center;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.cinema-footer-text {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .cinema-hero-title {
+    font-size: clamp(2.5rem, 10vw, 4rem);
+  }
+
+  .cinema-section-title {
+    font-size: clamp(1.8rem, 6vw, 2.5rem);
+  }
+
+  .cinema-poster-card {
+    width: 250px;
+    height: 375px;
+  }
+
+  .cinema-features {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Animations */
+@keyframes flicker-red {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.cinema-title-highlight {
+  background: linear-gradient(45deg,
+    var(--cinema-crimson) 0%,
+    var(--cinema-gold) 50%,
+    var(--cinema-crimson) 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-fill-color: transparent;
+  animation: flicker-red 4s ease infinite;
+}
